@@ -64,6 +64,53 @@ a2002011001-e02-16kHz-dot.png successfully created.
 ![generated_waveform_image](./examples/a2002011001-e02-16kHz-dot.png)
 
 
+
+Wav File Data Overview
+===
+
+The processed WAV file summary can be found generated json file. This file will be used to send waveform data to the JavaScript application. 
+Look at the excerpt below from a generated JSON file. The original file is here : `./resources/a2002011001-e02-16kHz.json`
+
+```json
+
+{
+    "source_file": "./resources/a2002011001-e02-16kHz.wav",
+    "sample_rate": 16000,
+    "bits": 16,
+    "samples_per_pixel": 256,
+    "time_duration": 54.3115625,
+    "processed_time_duration": 6.4008912787271658,
+    "samples_length": 6788,
+    "samples": [
+        {
+            "min": -1,
+            "max": 49,
+            "rms": 24.183947
+        },
+        {
+            "min": -49,
+            "max": 67,
+            "rms": 28.996902
+        },
+        {
+            "min": -101,
+            "max": 73,
+            "rms": 34.32445
+        },
+        {
+            "min": -261,
+            "max": 81,
+            "rms": 87.58449
+        },
+        {
+            "min": -347,
+            "max": 0,
+            "rms": 194.36104
+        }
+
+```
+
+
 TODOs
 ===
 
