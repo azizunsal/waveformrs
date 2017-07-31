@@ -7,7 +7,6 @@ extern crate serde;
 extern crate serde_json;
 extern crate image;
 extern crate imageproc;
-extern crate rusttype;
 
 use std::io;
 use std::fs::File;
@@ -16,9 +15,7 @@ use std::io::BufWriter;
 use clap::{Arg, App};
 use hound::WavReader;
 use image::{Rgb, RgbImage};
-use imageproc::drawing::{draw_line_segment_mut, draw_text_mut};
-
-use rusttype::{FontCollection, Scale};
+use imageproc::drawing::{draw_line_segment_mut};
 
 arg_enum! {
     #[derive(Debug)]
@@ -262,25 +259,6 @@ fn draw_waveform(samples: &Vec<SampleOverview>, filename: &str, width: u32, heig
     }
     img.save(&filename).unwrap();
     println!("{} successfully created.", filename);
-}
-
-#[allow(dead_code)]
-fn put_time_info(image: &mut RgbImage, duration: &f64) {
-
-    let (width, height) = (100, 50);
-
-    let font = Vec::from(include_bytes!("DejaVuSans.ttf") as &[u8]);
-    let font = FontCollection::from_bytes(font).into_font().unwrap();
-    
-    let height = 8.0;
-    let scale = Scale { x: height * 2.0, y: height };
-    println!("Scale is {:?}", scale);
-
-    draw_line_segment_mut(image, (20f32, 250f32), (20f32, 240f32), Rgb([255u8, 255u8, 255u8]));
-    draw_text_mut(image, Rgb([255u8, 255u8, 255u8]), 4, 229, scale, &font, "00:01");
-    
-    draw_line_segment_mut(image, ( (width - 55) as f32, 250f32), ((width - 55) as f32, 240f32), Rgb([255u8, 255u8, 255u8]));
-    draw_text_mut(image, Rgb([255u8, 255u8, 255u8]), width - 63, 229, scale, &font, &duration.round().to_string());
 }
 
 fn main() {
