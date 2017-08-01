@@ -69,7 +69,7 @@ Wav File Data Overview
 ===
 
 The processed WAV file summary can be found generated json file. This file will be used to send waveform data to the JavaScript application. 
-Look at the excerpt below from a generated JSON file. The original file is here : `./resources/a2002011001-e02-16kHz.json`
+Look at the excerpt below from a generated JSON file. The original file is here : `./examples/a2002011001-e02-16kHz.json`
 
 ```json
 
