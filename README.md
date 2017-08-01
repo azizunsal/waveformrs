@@ -3,6 +3,15 @@ Waveformrs Waveform Image Generator
 
 A waveform generator for WAV files (Mp3 and FLAC support will be added)
 
+Techs
+===
+
+* [Hound](https://github.com/ruuda/hound) A wav encoding library.
+* [Image](https://github.com/PistonDevelopers/image) Encoding and decoding images in Rust.
+* [Imageproc](https://github.com/PistonDevelopers/image) An image processing library based on the image library.
+* [Serde](https://github.com/serde-rs/serde) Serialization framework.
+* [Clap](https://github.com/kbknapp/clap-rs) A command line argument parser.
+
 Install
 ===
 
