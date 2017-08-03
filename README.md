@@ -12,10 +12,21 @@ Techs
 * [Serde](https://github.com/serde-rs/serde) Serialization framework.
 * [Clap](https://github.com/kbknapp/clap-rs) A command line argument parser.
 
+
+Prerequsities
+===
+
+Rust version 1.19 (rustc 1.19.0)
+
+```bash
+$ rustup update stable
+```
+
+
 Install
 ===
 
-```
+```bash
 $ git clone https://github.com/azizunsal/waveformrs.git
 $ cd waveformrs
 $ cargo build --release
