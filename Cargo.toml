@@ -4,10 +4,10 @@ version = "0.1.0"
 authors = ["Aziz Unsal <unsal.aziz@gmail.com>"]
 
 [dependencies]
-clap = "2.32.0"
-hound = "3.1.0"
-serde = "1.0"
-serde_derive = "1.0"
-serde_json = "1.0"
-image = "*"
-imageproc = "*"
+clap = "2.33.0"
+hound = "3.4.0"
+serde = "1.0.101"
+serde_derive = "1.0.101"
+serde_json = "1.0.40"
+image = "0.22.2"
+imageproc = "0.19.2"
