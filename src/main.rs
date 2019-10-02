@@ -128,7 +128,7 @@ fn parse_configuration_params() -> ApplicationConfig {
                 .value_name("IMGE_HEIGHT")
                 .takes_value(true)
                 .required(false)
-                .default_value("250"),
+                .default_value("220"),
         )
         .arg(
             Arg::with_name("waveform-theme")
