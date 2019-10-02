@@ -5,8 +5,13 @@ extern crate hound;
 extern crate serde_derive;
 extern crate image;
 extern crate imageproc;
+
 extern crate serde;
 extern crate serde_json;
+
+#[macro_use]
+extern crate log;
+extern crate env_logger;
 
 use std::fs::File;
 use std::io;
@@ -16,6 +21,8 @@ use clap::{App, Arg};
 use hound::WavReader;
 use image::{Rgb, RgbImage};
 use imageproc::drawing::draw_line_segment_mut;
+
+use env_logger::Env;
 
 arg_enum! {
     #[derive(Debug)]
@@ -151,7 +158,7 @@ fn parse_configuration_params() -> ApplicationConfig {
 
     let end_time = match end_time {
         None => {
-            println!("End time was not specified, assigned to -1.");
+            debug!("End time was not specified, assigned to -1.");
             -1
         }
         _ => end_time.unwrap().parse::<i32>().unwrap(),
@@ -168,7 +175,7 @@ fn parse_configuration_params() -> ApplicationConfig {
         target_filename_prefix: filename_wo_extension.to_owned(),
     };
 
-    println!("Current configuration is {:?}", app_config);
+    debug!("Current configuration is {:?}", app_config);
     app_config
 }
 
@@ -203,21 +210,21 @@ fn extract_samples(filename: &str, mut samples_per_pixel: u32, width: &u32) -> W
 
     let samples: Vec<i32> = reader.samples::<i32>().map(|s| s.unwrap()).collect();
     let sample_length = reader.len();
-    println!("sample_length is {}", sample_length);
+    // println!("sample_length is {}", sample_length);
     let file_duration = reader.duration() as f64;
-    println!("Reader [duration='{}', length='{}'", reader.duration(), reader.len());
-    println!("file_duration is {}", file_duration);
+    // println!("Reader [duration='{}', length='{}'", reader.duration(), reader.len());
+    // println!("file_duration is {}", file_duration);
     let spec = reader.spec();
-    println!("Spec is {:?}", spec);
+    // println!("Spec is {:?}", spec);
     let total_time = file_duration / spec.sample_rate as f64;
-    println!("total_time is {}", total_time);
+    // println!("total_time is {}", total_time);
 
     if samples_per_pixel == 0 {
-        println!("No zoom specified, the whole file will be printed.");
+        warn!("No zoom specified, the whole file will be printed.");
         let temp_val = &(sample_length / width);
         samples_per_pixel = *temp_val;
-        println!(
-            "calculated_sample_per_pixel according to the image width('{}') is {}",
+        debug!(
+            "Calculated samples per pixel(=zoom) according to the image width(='{}'px.) is {}",
             width, samples_per_pixel
         );
     }
@@ -229,7 +236,6 @@ fn extract_samples(filename: &str, mut samples_per_pixel: u32, width: &u32) -> W
     let mut count: u32 = 0;
     let mut rms_range: Vec<i32> = Vec::new();
 
-    println!("Samples length is '{}'", sample_length);
     for i in 0..sample_length {
         let index: usize = i as usize;
         let sample = samples[index];
@@ -258,9 +264,8 @@ fn extract_samples(filename: &str, mut samples_per_pixel: u32, width: &u32) -> W
         }
     }
 
-    println!("samples_overview.len() is {}", samples_overview.len());
     let image_duration = total_time as f64 / samples_overview.len() as f64 * *width as f64;
-    println!(
+    debug!(
         "Processed time duration is '{}' secs. / Overall time is '{}' secs.",
         image_duration, total_time
     );
@@ -281,15 +286,10 @@ fn write_to_file(filename: &str, summary: &WavFileSummary) {
     let file = File::create(filename).expect("Unable to create file!");
     let bw = BufWriter::new(file);
     serde_json::to_writer(bw, summary).expect("Unable to write!");
-    println!("wav file summary has written to the '{}' file.", &filename);
+    debug!("The wav file summary has written to '{}'.", &filename);
 }
 
 fn draw_waveform(samples: &Vec<SampleOverview>, filename: &str, width: u32, height: u32, theme: &WaveformThemes) {
-    println!(
-        "Drawing the waveform: image width is '{}', Samples length is '{}'",
-        width,
-        samples.len()
-    );
     let audocity_waveform_color = Rgb([63, 77, 155]);
     let audocity_rms_color = Rgb([121, 128, 225]);
     let mut img: RgbImage = RgbImage::new(width as u32, height as u32);
@@ -298,7 +298,7 @@ fn draw_waveform(samples: &Vec<SampleOverview>, filename: &str, width: u32, heig
         let index: usize = x as usize;
 
         if index == samples.len() {
-            eprintln!("There is not enough samples!");
+            error!("There is not enough samples!");
             break;
         }
 
@@ -368,17 +368,26 @@ fn draw_waveform(samples: &Vec<SampleOverview>, filename: &str, width: u32, heig
         };
     }
     img.save(&filename).unwrap();
-    println!("{} successfully created.", filename);
+    info!("The waveform image has successfully been created. '{}'", filename);
 }
 
 fn main() {
+    let env = Env::default()
+        .filter_or("MY_LOG_LEVEL", "info")
+        .write_style_or("MY_LOG_STYLE", "always");
+
+    env_logger::init_from_env(env);
+
     let config = parse_configuration_params();
     let summary: WavFileSummary = extract_samples(&config.source_file, config.samples_per_pixel, &config.image_width);
+    let processing_percentage = ((&summary.processed_time_duration / &summary.time_duration) * 100 as f64).round();
     let file_name = &(config.target_filename_prefix.to_owned()
         + "-w"
         + &config.image_width.to_string()
         + "-z"
-        + &summary.samples_per_pixel.to_string());
+        + &summary.samples_per_pixel.to_string()
+        + "-per"
+        + &processing_percentage.to_string());
     write_to_file(&(file_name.to_owned() + ".json"), &summary);
     draw_waveform(
         &summary.samples,
