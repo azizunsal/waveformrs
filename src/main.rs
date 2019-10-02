@@ -28,6 +28,8 @@ arg_enum! {
 #[derive(Debug)]
 struct ApplicationConfig {
     theme: WaveformThemes,
+    start_time: u32,
+    end_time: i32,
     image_width: u32,
     image_height: u32,
     samples_per_pixel: u32,
@@ -62,7 +64,7 @@ fn parse_configuration_params() -> ApplicationConfig {
             Arg::with_name("input")
                 .short("i")
                 .long("input")
-                .value_name("wav file name")
+                .value_name("WAV_FILE_NAME")
                 .help("Name of the wav file to be processed - full path.")
                 .takes_value(true)
                 .required(true),
@@ -71,32 +73,52 @@ fn parse_configuration_params() -> ApplicationConfig {
             Arg::with_name("output")
                 .short("o")
                 .long("output")
-                .value_name("image file name")
+                .value_name("GENERATED_IMAGE_FILE_NAME")
                 .help("Name of the waveform image file to be generated.")
                 .takes_value(true)
                 .required(true),
         )
         .arg(
-            Arg::with_name("samples-per-pixel")
-                .short("s")
-                .long("samples-per-pixel")
-                .value_name("samples per pixel")
+            Arg::with_name("zoom")
+                .short("z")
+                .long("zoom")
+                .value_name("SAMPLES_PER_PIXEL")
                 .takes_value(true)
-                .default_value("256")
+                .required(false)
+                .default_value("0"),
+        )
+        .arg(
+            Arg::with_name("start-time")
+                .short("s")
+                .long("start")
+                .value_name("START_TIME")
+                .takes_value(true)
+                .required(false)
+                .default_value("0"),
+        )
+        .arg(
+            Arg::with_name("end-time")
+                .short("e")
+                .long("end")
+                .value_name("END_TIME")
+                .help("Not valid if zoom is specified.")
+                .takes_value(true)
                 .required(false),
         )
         .arg(
             Arg::with_name("image-width")
                 .short("w")
                 .long("width")
+                .value_name("IMAGE_WIDTH")
                 .takes_value(true)
                 .required(false)
-                .default_value("800"),
+                .default_value("1335"),
         )
         .arg(
             Arg::with_name("image-height")
                 .short("h")
                 .long("height")
+                .value_name("IMGE_HEIGHT")
                 .takes_value(true)
                 .required(false)
                 .default_value("250"),
@@ -105,6 +127,7 @@ fn parse_configuration_params() -> ApplicationConfig {
             Arg::with_name("waveform-theme")
                 .short("t")
                 .long("theme")
+                .value_name("THEME")
                 .takes_value(true)
                 .required(false)
                 .possible_values(&WaveformThemes::variants()),
@@ -113,36 +136,40 @@ fn parse_configuration_params() -> ApplicationConfig {
 
     let source_filename = matches.value_of("input").unwrap();
     let target_filename = matches.value_of("output").unwrap();
-    let samples_per_pixel = matches
-        .value_of("samples-per-pixel")
-        .unwrap()
-        .parse::<u32>()
-        .unwrap();
-    let width = matches
-        .value_of("image-width")
-        .unwrap()
-        .parse::<u32>()
-        .unwrap();
-    let height = matches
-        .value_of("image-height")
-        .unwrap()
-        .parse::<u32>()
-        .unwrap();
-    let theme = value_t!(matches.value_of("waveform-theme"), WaveformThemes)
-        .unwrap_or_else(|_e| WaveformThemes::Line);
+    let end_time = matches.value_of("end-time");
+    let samples_per_pixel = matches.value_of("zoom").unwrap().parse::<u32>().unwrap();
+    let start_time = matches.value_of("start-time").unwrap().parse::<u32>().unwrap();
+    let width = matches.value_of("image-width").unwrap().parse::<u32>().unwrap();
+    let height = matches.value_of("image-height").unwrap().parse::<u32>().unwrap();
+    let theme = value_t!(matches.value_of("waveform-theme"), WaveformThemes).unwrap_or_else(|_e| WaveformThemes::Line);
 
-    // println!("Configurations [input={}, output={}, samples-per-pixel={}, width={}, height={}, theme={}]",
-    //     source_filename, target_filename, samples_per_pixel, width, height, theme);
+    if samples_per_pixel > 0 && end_time.is_some() {
+        panic!("Zoom and end-time cannot be specified at the same time!");
+    }
+
     let filename_wo_extension = get_filename_without_extension(&target_filename);
 
-    ApplicationConfig {
+    let end_time = match end_time {
+        None => {
+            println!("End time was not specified, assigned to -1.");
+            -1
+        }
+        _ => end_time.unwrap().parse::<i32>().unwrap(),
+    };
+
+    let app_config: ApplicationConfig = ApplicationConfig {
         theme: theme,
+        start_time,
+        end_time,
         image_width: width,
         image_height: height,
         samples_per_pixel: samples_per_pixel,
         source_file: source_filename.to_owned(),
         target_filename_prefix: filename_wo_extension.to_owned(),
-    }
+    };
+
+    println!("Current configuration is {:?}", app_config);
+    app_config
 }
 
 fn get_filename_without_extension(filename: &str) -> &str {
@@ -162,6 +189,7 @@ fn get_filename(filename: &str, seperator: char) -> Option<usize> {
     None
 }
 
+// See what the RMS stand for https://manual.audacityteam.org/man/glossary.html#rms
 fn calculate_rms(samples: &Vec<i32>) -> f32 {
     let sqr_sum = samples.iter().fold(0.0, |sqr_sum, s| {
         let sample = *s as f32;
@@ -170,14 +198,29 @@ fn calculate_rms(samples: &Vec<i32>) -> f32 {
     (sqr_sum / samples.len() as f32).sqrt()
 }
 
-fn extract_samples(filename: &str, samples_per_pixel: &u32, width: &u32) -> WavFileSummary {
+fn extract_samples(filename: &str, mut samples_per_pixel: u32, width: &u32) -> WavFileSummary {
     let mut reader: WavReader<io::BufReader<File>> = hound::WavReader::open(filename).unwrap();
 
     let samples: Vec<i32> = reader.samples::<i32>().map(|s| s.unwrap()).collect();
     let sample_length = reader.len();
+    println!("sample_length is {}", sample_length);
     let file_duration = reader.duration() as f64;
+    println!("Reader [duration='{}', length='{}'", reader.duration(), reader.len());
+    println!("file_duration is {}", file_duration);
     let spec = reader.spec();
+    println!("Spec is {:?}", spec);
     let total_time = file_duration / spec.sample_rate as f64;
+    println!("total_time is {}", total_time);
+
+    if samples_per_pixel == 0 {
+        println!("No zoom specified, the whole file will be printed.");
+        let temp_val = &(sample_length / width);
+        samples_per_pixel = *temp_val;
+        println!(
+            "calculated_sample_per_pixel according to the image width('{}') is {}",
+            width, samples_per_pixel
+        );
+    }
 
     let (mut min, mut max) = (0, 0);
 
@@ -186,6 +229,7 @@ fn extract_samples(filename: &str, samples_per_pixel: &u32, width: &u32) -> WavF
     let mut count: u32 = 0;
     let mut rms_range: Vec<i32> = Vec::new();
 
+    println!("Samples length is '{}'", sample_length);
     for i in 0..sample_length {
         let index: usize = i as usize;
         let sample = samples[index];
@@ -198,7 +242,8 @@ fn extract_samples(filename: &str, samples_per_pixel: &u32, width: &u32) -> WavF
         }
 
         count += 1;
-        if count == *samples_per_pixel {
+        // println!("Count = {}, samples_per_pixel = {}", count, samples_per_pixel);
+        if count == samples_per_pixel {
             let rms = calculate_rms(&rms_range);
             // println!("[min ={} max= {}, rms = {}]", min, max, rms);
             samples_overview.push(SampleOverview {
@@ -213,7 +258,12 @@ fn extract_samples(filename: &str, samples_per_pixel: &u32, width: &u32) -> WavF
         }
     }
 
+    println!("samples_overview.len() is {}", samples_overview.len());
     let image_duration = total_time as f64 / samples_overview.len() as f64 * *width as f64;
+    println!(
+        "Processed time duration is '{}' secs. / Overall time is '{}' secs.",
+        image_duration, total_time
+    );
 
     WavFileSummary {
         source_file: filename.to_owned(),
@@ -234,20 +284,20 @@ fn write_to_file(filename: &str, summary: &WavFileSummary) {
     println!("wav file summary has written to the '{}' file.", &filename);
 }
 
-fn draw_waveform(
-    samples: &Vec<SampleOverview>,
-    filename: &str,
-    width: u32,
-    height: u32,
-    theme: &WaveformThemes,
-) {
+fn draw_waveform(samples: &Vec<SampleOverview>, filename: &str, width: u32, height: u32, theme: &WaveformThemes) {
+    println!(
+        "Drawing the waveform: image width is '{}', Samples length is '{}'",
+        width,
+        samples.len()
+    );
     let audocity_waveform_color = Rgb([63, 77, 155]);
     let audocity_rms_color = Rgb([121, 128, 225]);
     let mut img: RgbImage = RgbImage::new(width as u32, height as u32);
+
     for x in 0..width {
         let index: usize = x as usize;
 
-        if index == samples.len() - 1 {
+        if index == samples.len() {
             eprintln!("There is not enough samples!");
             break;
         }
@@ -291,12 +341,7 @@ fn draw_waveform(
                     audocity_waveform_color,
                 );
                 // Draw RMS for this sample group.
-                draw_line_segment_mut(
-                    &mut img,
-                    (x as f32, low_rms_y),
-                    (x as f32, rms_y),
-                    audocity_rms_color,
-                );
+                draw_line_segment_mut(&mut img, (x as f32, low_rms_y), (x as f32, rms_y), audocity_rms_color);
             }
             &WaveformThemes::Dot => {
                 draw_line_segment_mut(
@@ -318,12 +363,7 @@ fn draw_waveform(
                     (x as f32, low_rms_y),
                     Rgb([255, 0, 255]),
                 );
-                draw_line_segment_mut(
-                    &mut img,
-                    (x as f32, rms_y),
-                    (x as f32, rms_y),
-                    Rgb([255, 0, 255]),
-                );
+                draw_line_segment_mut(&mut img, (x as f32, rms_y), (x as f32, rms_y), Rgb([255, 0, 255]));
             }
         };
     }
@@ -333,18 +373,16 @@ fn draw_waveform(
 
 fn main() {
     let config = parse_configuration_params();
-    let summary: WavFileSummary = extract_samples(
-        &config.source_file,
-        &config.samples_per_pixel,
-        &config.image_width,
-    );
-    write_to_file(
-        &(config.target_filename_prefix.to_owned() + ".json"),
-        &summary,
-    );
+    let summary: WavFileSummary = extract_samples(&config.source_file, config.samples_per_pixel, &config.image_width);
+    let file_name = &(config.target_filename_prefix.to_owned()
+        + "-w"
+        + &config.image_width.to_string()
+        + "-z"
+        + &summary.samples_per_pixel.to_string());
+    write_to_file(&(file_name.to_owned() + ".json"), &summary);
     draw_waveform(
         &summary.samples,
-        &(config.target_filename_prefix.to_owned() + ".png"),
+        &(file_name.to_owned() + ".png"),
         config.image_width,
         config.image_height,
         &config.theme,

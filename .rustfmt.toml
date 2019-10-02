@@ -1,0 +1,7 @@
+# Maximum width of each line.
+# Default: 100
+    max_width = 120
+
+# Put single-expression functions on a single line.
+# Default: false
+#   fn_single_line = 
