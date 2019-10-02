@@ -3,3 +3,8 @@ target/
 .vscode/
 .idea
 .waveformrs
+.DS_Store
+*.png
+*.json
+!examples/*.json
+!examples/*.png
