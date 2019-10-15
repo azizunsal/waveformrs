@@ -252,11 +252,7 @@ fn extract_samples(filename: &str, mut samples_per_pixel: u32, width: &u32) -> W
         if count == samples_per_pixel {
             let rms = calculate_rms(&rms_range);
             // println!("[min ={} max= {}, rms = {}]", min, max, rms);
-            samples_overview.push(SampleOverview {
-                min,
-                max,
-                rms,
-            });
+            samples_overview.push(SampleOverview { min, max, rms });
             count = 0;
             min = 0;
             max = 0;
