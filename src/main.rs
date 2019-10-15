@@ -165,12 +165,12 @@ fn parse_configuration_params() -> ApplicationConfig {
     };
 
     let app_config: ApplicationConfig = ApplicationConfig {
-        theme: theme,
+        theme,
         start_time,
         end_time,
         image_width: width,
         image_height: height,
-        samples_per_pixel: samples_per_pixel,
+        samples_per_pixel,
         source_file: source_filename.to_owned(),
         target_filename_prefix: filename_wo_extension.to_owned(),
     };
@@ -253,9 +253,9 @@ fn extract_samples(filename: &str, mut samples_per_pixel: u32, width: &u32) -> W
             let rms = calculate_rms(&rms_range);
             // println!("[min ={} max= {}, rms = {}]", min, max, rms);
             samples_overview.push(SampleOverview {
-                min: min,
-                max: max,
-                rms: rms,
+                min,
+                max,
+                rms,
             });
             count = 0;
             min = 0;
@@ -302,7 +302,7 @@ fn draw_waveform(samples: &Vec<SampleOverview>, filename: &str, width: u32, heig
             break;
         }
 
-        let ref sample_overview = samples[index];
+        let sample_overview = &samples[index];
         let mut min = sample_overview.min;
         let mut max = sample_overview.max;
 
@@ -310,11 +310,11 @@ fn draw_waveform(samples: &Vec<SampleOverview>, filename: &str, width: u32, heig
         if min < -32768 {
             min = -32768;
         }
-        min = min + 32768;
+        min += 32768;
         if max > 32767 {
             max = 32767;
         }
-        max = max + 32768;
+        max += 32768;
 
         let mut rms = sample_overview.rms;
 
@@ -324,7 +324,7 @@ fn draw_waveform(samples: &Vec<SampleOverview>, filename: &str, width: u32, heig
         if rms > 32767f32 {
             rms = 32767f32;
         }
-        rms = rms + 32768f32;
+        rms += 32768f32;
 
         // Scale to fit the bitmap
         let low_y = height as i32 - min * height as i32 / 65536;
@@ -380,7 +380,7 @@ fn main() {
 
     let config = parse_configuration_params();
     let summary: WavFileSummary = extract_samples(&config.source_file, config.samples_per_pixel, &config.image_width);
-    let processing_percentage = ((&summary.processed_time_duration / &summary.time_duration) * 100 as f64).round();
+    let processing_percentage = ((&summary.processed_time_duration / &summary.time_duration) * 100_f64).round();
     let file_name = &(config.target_filename_prefix.to_owned()
         + "-w"
         + &config.image_width.to_string()
