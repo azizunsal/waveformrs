@@ -132,11 +132,11 @@ Look at the excerpt below from a generated JSON file. The original file is here 
 
 
 TODOs
-===
+---
 
-1. Mp3 and FLAC file support will be added.
-2. Waveform borders will be modified to give offset.
-3. Wav file time info added as an option to the generated image file.
-4. Just create waveform data options will be added to serve as a JavaScript waveform generator application backend.
+- [ ] Mp3 and FLAC file support will be added.
+- [ ] Waveform borders will be modified to give offset.
+- [ ] Wav file time info added as an option to the generated image file.
+- [ ] Just create waveform data options will be added to serve as a JavaScript waveform generator application backend.
 
 
