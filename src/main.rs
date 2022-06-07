@@ -69,7 +69,7 @@ fn parse_configuration_params() -> ApplicationConfig {
         .author("Aziz Unsal - unsal.aziz@gmail.com")
         .arg(
             Arg::with_name("input")
-                .short("i")
+                .short('i')
                 .long("input")
                 .value_name("WAV_FILE_NAME")
                 .help("Name of the wav file to be processed - full path.")
@@ -78,7 +78,7 @@ fn parse_configuration_params() -> ApplicationConfig {
         )
         .arg(
             Arg::with_name("output")
-                .short("o")
+                .short('o')
                 .long("output")
                 .value_name("GENERATED_IMAGE_FILE_NAME")
                 .help("Name of the waveform image file to be generated.")
@@ -87,7 +87,7 @@ fn parse_configuration_params() -> ApplicationConfig {
         )
         .arg(
             Arg::with_name("zoom")
-                .short("z")
+                .short('z')
                 .long("zoom")
                 .value_name("SAMPLES_PER_PIXEL")
                 .takes_value(true)
@@ -96,7 +96,7 @@ fn parse_configuration_params() -> ApplicationConfig {
         )
         .arg(
             Arg::with_name("start-time")
-                .short("s")
+                .short('s')
                 .long("start")
                 .value_name("START_TIME")
                 .takes_value(true)
@@ -105,7 +105,7 @@ fn parse_configuration_params() -> ApplicationConfig {
         )
         .arg(
             Arg::with_name("end-time")
-                .short("e")
+                .short('e')
                 .long("end")
                 .value_name("END_TIME")
                 .help("Not valid if zoom is specified.")
@@ -114,7 +114,7 @@ fn parse_configuration_params() -> ApplicationConfig {
         )
         .arg(
             Arg::with_name("image-width")
-                .short("w")
+                .short('w')
                 .long("width")
                 .value_name("IMAGE_WIDTH")
                 .takes_value(true)
@@ -123,7 +123,7 @@ fn parse_configuration_params() -> ApplicationConfig {
         )
         .arg(
             Arg::with_name("image-height")
-                .short("h")
+                .short('h')
                 .long("height")
                 .value_name("IMGE_HEIGHT")
                 .takes_value(true)
@@ -132,7 +132,7 @@ fn parse_configuration_params() -> ApplicationConfig {
         )
         .arg(
             Arg::with_name("waveform-theme")
-                .short("t")
+                .short('t')
                 .long("theme")
                 .value_name("THEME")
                 .takes_value(true)
