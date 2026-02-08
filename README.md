@@ -13,10 +13,10 @@ Techs
 * [Clap](https://github.com/kbknapp/clap-rs) A command line argument parser.
 
 
-Prerequsities
+Prerequisites
 ===
 
-Rust version 1.19 (rustc 1.19.0)
+Rust stable (last tested with rustc 1.77.1 on Feb 8, 2026)
 
 ```bash
 $ rustup update stable
@@ -44,19 +44,19 @@ Waveform Generator 0.1.0
 Aziz Unsal - unsal.aziz@gmail.com
 
 USAGE:
-    waveformrs [OPTIONS] --input <wav file name> --output <image file name>
-
-FLAGS:
-        --help       Prints help information
-    -V, --version    Prints version information
+    waveformrs [OPTIONS] --input <WAV_FILE_NAME> --output <GENERATED_IMAGE_FILE_NAME>
 
 OPTIONS:
-    -h, --height <image-height>                     [default: 250]
-    -w, --width <image-width>                       [default: 800]
-    -i, --input <wav file name>                    Name of the wav file to be processed - full path.
-    -o, --output <image file name>                 Name of the waveform image file to be generated.
-    -s, --samples-per-pixel <samples per pixel>     [default: 256]
-    -t, --theme <waveform-theme>                    [values: Dot, Line]
+    -e, --end <END_TIME>                        Not valid if zoom is specified.
+    -h, --height <IMGE_HEIGHT>                  [default: 220]
+        --help                                  Print help information
+    -i, --input <WAV_FILE_NAME>                 Name of the wav file to be processed - full path.
+    -o, --output <GENERATED_IMAGE_FILE_NAME>    Name of the waveform image file to be generated.
+    -s, --start <START_TIME>                    [default: 0]
+    -t, --theme <THEME>                         [possible values: Dot, Line]
+    -V, --version                               Print version information
+    -w, --width <IMAGE_WIDTH>                   [default: 1335]
+    -z, --zoom <SAMPLES_PER_PIXEL>              [default: 0]
 ```
 
 Usage
@@ -65,10 +65,12 @@ Usage
 ```bash
 
 $ waveformrs -i ./resources/a2002011001-e02-16kHz.wav -o a2002011001-e02-16kHz.png
-wav file summary has written to the 'a2002011001-e02-16kHz.json' file.
-a2002011001-e02-16kHz.png successfully created.
+The waveform image has successfully been created. 'a2002011001-e02-16kHz-w1335-z1301-per200.png'
 
 ```
+
+Note: `-o/--output` is used as a filename prefix. The actual output file names are generated
+by appending `-w{width}-z{zoom}-per{percent}` and the `.png`/`.json` extensions.
 
 ![generated_waveform_image](./examples/a2002011001-e02-16kHz.png)
 
@@ -76,8 +78,7 @@ a2002011001-e02-16kHz.png successfully created.
 ```bash
 
 $ waveformrs -i ./resources/a2002011001-e02-16kHz.wav -o a2002011001-e02-16kHz-dot.png -t Dot
-wav file summary has written to the 'a2002011001-e02-16kHz-dot.json' file.
-a2002011001-e02-16kHz-dot.png successfully created.
+The waveform image has successfully been created. 'a2002011001-e02-16kHz-dot-w1335-z1301-per200.png'
 
 ```
 
@@ -138,5 +139,3 @@ TODOs
 - [ ] Waveform borders will be modified to give offset.
 - [ ] Wav file time info added as an option to the generated image file.
 - [ ] Just create waveform data options will be added to serve as a JavaScript waveform generator application backend.
-
-
