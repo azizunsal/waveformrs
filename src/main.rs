@@ -1,4 +1,3 @@
-#[macro_use]
 extern crate clap;
 extern crate hound;
 #[macro_use]
@@ -17,22 +16,21 @@ use std::fs::File;
 use std::io;
 use std::io::BufWriter;
 
-use clap::{App, Arg};
+use clap::{Arg, Command};
 use hound::WavReader;
 use image::{Rgb, RgbImage};
 use imageproc::drawing::draw_line_segment_mut;
 
 use env_logger::Env;
 
-arg_enum! {
-    #[derive(Debug)]
-    enum WaveformThemes {
-        Dot,
-        Line
-    }
+#[derive(Debug, Clone)]
+enum WaveformThemes {
+    Dot,
+    Line,
 }
 
 #[derive(Debug)]
+#[allow(dead_code)] // Start/end time are parsed for CLI completeness; not used yet.
 struct ApplicationConfig {
     theme: WaveformThemes,
     start_time: u32,
@@ -64,11 +62,11 @@ struct SampleOverview {
 }
 
 fn parse_configuration_params() -> ApplicationConfig {
-    let matches = App::new("Waveform Generator")
+    let matches = Command::new("Waveform Generator")
         .version("0.1.0")
         .author("Aziz Unsal - unsal.aziz@gmail.com")
         .arg(
-            Arg::with_name("input")
+            Arg::new("input")
                 .short('i')
                 .long("input")
                 .value_name("WAV_FILE_NAME")
@@ -77,7 +75,7 @@ fn parse_configuration_params() -> ApplicationConfig {
                 .required(true),
         )
         .arg(
-            Arg::with_name("output")
+            Arg::new("output")
                 .short('o')
                 .long("output")
                 .value_name("GENERATED_IMAGE_FILE_NAME")
@@ -86,69 +84,83 @@ fn parse_configuration_params() -> ApplicationConfig {
                 .required(true),
         )
         .arg(
-            Arg::with_name("zoom")
+            Arg::new("zoom")
                 .short('z')
                 .long("zoom")
                 .value_name("SAMPLES_PER_PIXEL")
-                .takes_value(true)
                 .required(false)
                 .default_value("0"),
         )
         .arg(
-            Arg::with_name("start-time")
+            Arg::new("start-time")
                 .short('s')
                 .long("start")
                 .value_name("START_TIME")
-                .takes_value(true)
                 .required(false)
                 .default_value("0"),
         )
         .arg(
-            Arg::with_name("end-time")
+            Arg::new("end-time")
                 .short('e')
                 .long("end")
                 .value_name("END_TIME")
                 .help("Not valid if zoom is specified.")
-                .takes_value(true)
                 .required(false),
         )
         .arg(
-            Arg::with_name("image-width")
+            Arg::new("image-width")
                 .short('w')
                 .long("width")
                 .value_name("IMAGE_WIDTH")
-                .takes_value(true)
                 .required(false)
                 .default_value("1335"),
         )
         .arg(
-            Arg::with_name("image-height")
+            Arg::new("image-height")
                 .short('h')
                 .long("height")
                 .value_name("IMGE_HEIGHT")
-                .takes_value(true)
                 .required(false)
                 .default_value("220"),
         )
         .arg(
-            Arg::with_name("waveform-theme")
+            Arg::new("waveform-theme")
                 .short('t')
                 .long("theme")
                 .value_name("THEME")
-                .takes_value(true)
-                .required(false)
-                .possible_values(&WaveformThemes::variants()),
+                .possible_values(["Dot", "Line"])
+                .required(false),
         )
         .get_matches();
 
     let source_filename = matches.value_of("input").unwrap();
     let target_filename = matches.value_of("output").unwrap();
     let end_time = matches.value_of("end-time");
-    let samples_per_pixel = matches.value_of("zoom").unwrap().parse::<u32>().unwrap();
-    let start_time = matches.value_of("start-time").unwrap().parse::<u32>().unwrap();
-    let width = matches.value_of("image-width").unwrap().parse::<u32>().unwrap();
-    let height = matches.value_of("image-height").unwrap().parse::<u32>().unwrap();
-    let theme = value_t!(matches.value_of("waveform-theme"), WaveformThemes).unwrap_or_else(|_e| WaveformThemes::Line);
+    let samples_per_pixel = matches
+        .value_of("zoom")
+        .unwrap()
+        .parse::<u32>()
+        .unwrap();
+    let start_time = matches
+        .value_of("start-time")
+        .unwrap()
+        .parse::<u32>()
+        .unwrap();
+    let width = matches
+        .value_of("image-width")
+        .unwrap()
+        .parse::<u32>()
+        .unwrap();
+    let height = matches
+        .value_of("image-height")
+        .unwrap()
+        .parse::<u32>()
+        .unwrap();
+    let theme = match matches.value_of("waveform-theme") {
+        Some("Dot") => WaveformThemes::Dot,
+        Some("Line") => WaveformThemes::Line,
+        _ => WaveformThemes::Line,
+    };
 
     if samples_per_pixel > 0 && end_time.is_some() {
         panic!("Zoom and end-time cannot be specified at the same time!");
@@ -161,8 +173,11 @@ fn parse_configuration_params() -> ApplicationConfig {
             debug!("End time was not specified, assigned to -1.");
             -1
         }
-        _ => end_time.unwrap().parse::<i32>().unwrap(),
+        Some(val) => val.parse::<i32>().unwrap(),
     };
+    if end_time >= 0 && (start_time as i32) >= end_time {
+        panic!("Start time must be less than end time.");
+    }
 
     let app_config: ApplicationConfig = ApplicationConfig {
         theme,
@@ -205,11 +220,11 @@ fn calculate_rms(samples: &Vec<i32>) -> f32 {
     (sqr_sum / samples.len() as f32).sqrt()
 }
 
-fn extract_samples(filename: &str, mut samples_per_pixel: u32, width: &u32) -> WavFileSummary {
+fn extract_samples(filename: &str, mut samples_per_pixel: u32, width: &u32, start_time: u32, end_time: i32) -> WavFileSummary {
     let mut reader: WavReader<io::BufReader<File>> = hound::WavReader::open(filename).unwrap();
 
     let samples: Vec<i32> = reader.samples::<i32>().map(|s| s.unwrap()).collect();
-    let sample_length = reader.len();
+    let sample_length = reader.len() as u64;
     // println!("sample_length is {}", sample_length);
     let file_duration = reader.duration() as f64;
     // println!("Reader [duration='{}', length='{}'", reader.duration(), reader.len());
@@ -219,10 +234,26 @@ fn extract_samples(filename: &str, mut samples_per_pixel: u32, width: &u32) -> W
     let total_time = file_duration / spec.sample_rate as f64;
     // println!("total_time is {}", total_time);
 
+    let start_sample = (start_time as u64).saturating_mul(spec.sample_rate as u64);
+    let mut end_sample = if end_time < 0 {
+        sample_length
+    } else {
+        (end_time as u64).saturating_mul(spec.sample_rate as u64)
+    };
+    if end_sample > sample_length {
+        end_sample = sample_length;
+    }
+    if start_sample >= end_sample {
+        panic!("Start time must be less than end time and within file duration.");
+    }
+
+    let selection_length = end_sample - start_sample;
+    let selection_time = selection_length as f64 / spec.sample_rate as f64;
+
     if samples_per_pixel == 0 {
         warn!("No zoom specified, the whole file will be printed.");
-        let temp_val = &(sample_length / width);
-        samples_per_pixel = *temp_val;
+        let temp_val = selection_length / *width as u64;
+        samples_per_pixel = if temp_val == 0 { 1 } else { temp_val as u32 };
         debug!(
             "Calculated samples per pixel(=zoom) according to the image width(='{}'px.) is {}",
             width, samples_per_pixel
@@ -236,7 +267,7 @@ fn extract_samples(filename: &str, mut samples_per_pixel: u32, width: &u32) -> W
     let mut count: u32 = 0;
     let mut rms_range: Vec<i32> = Vec::new();
 
-    for i in 0..sample_length {
+    for i in start_sample..end_sample {
         let index: usize = i as usize;
         let sample = samples[index];
         rms_range.push(sample);
@@ -260,7 +291,7 @@ fn extract_samples(filename: &str, mut samples_per_pixel: u32, width: &u32) -> W
         }
     }
 
-    let image_duration = total_time as f64 / samples_overview.len() as f64 * *width as f64;
+    let image_duration = selection_time / samples_overview.len() as f64 * *width as f64;
     debug!(
         "Processed time duration is '{}' secs. / Overall time is '{}' secs.",
         image_duration, total_time
@@ -375,7 +406,13 @@ fn main() {
     env_logger::init_from_env(env);
 
     let config = parse_configuration_params();
-    let summary: WavFileSummary = extract_samples(&config.source_file, config.samples_per_pixel, &config.image_width);
+    let summary: WavFileSummary = extract_samples(
+        &config.source_file,
+        config.samples_per_pixel,
+        &config.image_width,
+        config.start_time,
+        config.end_time,
+    );
     let processing_percentage = ((&summary.processed_time_duration / &summary.time_duration) * 100_f64).round();
     let file_name = &(config.target_filename_prefix.to_owned()
         + "-w"
@@ -392,4 +429,111 @@ fn main() {
         config.image_height,
         &config.theme,
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hound::{SampleFormat, WavSpec, WavWriter};
+    use std::env;
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temp_wav_path(name: &str) -> String {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let mut path = env::temp_dir();
+        path.push(format!("waveformrs-{}-{}.wav", name, nanos));
+        path.to_string_lossy().to_string()
+    }
+
+    fn write_test_wav(path: &str, samples: &[i32], sample_rate: u32) {
+        let spec = WavSpec {
+            channels: 1,
+            sample_rate,
+            bits_per_sample: 32,
+            sample_format: SampleFormat::Int,
+        };
+        let mut writer = WavWriter::create(path, spec).expect("create test wav");
+        for s in samples {
+            writer.write_sample(*s).expect("write sample");
+        }
+        writer.finalize().expect("finalize wav");
+    }
+
+    #[test]
+    fn filename_without_extension_handles_dot_and_no_dot() {
+        assert_eq!(get_filename_without_extension("foo.wav"), "foo");
+        assert_eq!(get_filename_without_extension("foo.bar.wav"), "foo");
+        assert_eq!(get_filename_without_extension("foo"), "foo");
+    }
+
+    #[test]
+    fn get_filename_finds_separator_index() {
+        assert_eq!(get_filename("foo.wav", '.'), Some(3));
+        assert_eq!(get_filename("foo", '.'), None);
+    }
+
+    #[test]
+    fn calculate_rms_is_correct_for_simple_values() {
+        let rms = calculate_rms(&vec![3, 4]);
+        let expected = (12.5f32).sqrt();
+        assert!((rms - expected).abs() < 1e-5);
+    }
+
+    #[test]
+    fn extract_samples_aggregates_min_max_rms() {
+        let path = temp_wav_path("agg");
+        write_test_wav(&path, &[0, 10, -10, 20], 8_000);
+
+        let summary = extract_samples(&path, 2, &2, 0, -1);
+        assert_eq!(summary.samples_per_pixel, 2);
+        assert_eq!(summary.samples_length, 2);
+
+        let s0 = &summary.samples[0];
+        assert_eq!(s0.min, 0);
+        assert_eq!(s0.max, 10);
+        assert!((s0.rms - (50f32).sqrt()).abs() < 1e-5);
+
+        let s1 = &summary.samples[1];
+        assert_eq!(s1.min, -10);
+        assert_eq!(s1.max, 20);
+        assert!((s1.rms - (250f32).sqrt()).abs() < 1e-5);
+
+        let _ = fs::remove_file(&path);
+    }
+
+    #[test]
+    fn extract_samples_uses_width_when_zoom_is_zero() {
+        let path = temp_wav_path("zoom");
+        write_test_wav(&path, &[1, 2, 3, 4], 8_000);
+
+        let summary = extract_samples(&path, 0, &2, 0, -1);
+        assert_eq!(summary.samples_per_pixel, 2);
+        assert_eq!(summary.samples_length, 2);
+
+        let _ = fs::remove_file(&path);
+    }
+
+    #[test]
+    fn extract_samples_respects_start_end_time() {
+        let path = temp_wav_path("range");
+        // 8 samples at 4 Hz = 2 seconds total.
+        write_test_wav(&path, &[1, 2, 3, 4, -5, 6, -7, 8], 4);
+
+        let summary = extract_samples(&path, 2, &2, 1, 2);
+        assert_eq!(summary.samples_length, 2);
+
+        let s0 = &summary.samples[0];
+        assert_eq!(s0.min, -5);
+        assert_eq!(s0.max, 6);
+
+        let s1 = &summary.samples[1];
+        assert_eq!(s1.min, -7);
+        assert_eq!(s1.max, 8);
+
+        let _ = fs::remove_file(&path);
+    }
 }
