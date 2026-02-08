@@ -30,7 +30,6 @@ enum WaveformThemes {
 }
 
 #[derive(Debug)]
-#[allow(dead_code)] // Start/end time are parsed for CLI completeness; not used yet.
 struct ApplicationConfig {
     theme: WaveformThemes,
     start_time: u32,
